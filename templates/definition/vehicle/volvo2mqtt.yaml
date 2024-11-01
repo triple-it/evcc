@@ -43,15 +43,36 @@ render: |
     topic: homeassistant/sensor/{{ .vin }}_battery_charge_level/state
     timeout: {{ .timeout }}
   status:
-    source: combined
-    plugged:
-      source: mqtt
-      topic: homeassistant/sensor/{{ .vin }}_charging_connection_status/state
-      timeout: {{ .timeout }}
-    charging:
-      source: mqtt
-      topic: homeassistant/sensor/{{ .vin }}_charging_system_status/state
-      timeout: {{ .timeout }}
+    source: go
+    script: |
+         result := "A";  // Vehicle disconnected
+         switch charging_connection_status {
+            case "Connected AC":
+              switch charging_system_status {
+                 case "Charging":
+                  result="C" // Vehicle connected and charging
+                case "Done":
+                  result="B" // Charging completed. No E or F no Fehler?
+                default:
+                  result="B" // Vehicle connected, no charging, no power
+             }
+             default:
+               result = "A" // Vehicle disconnected
+         }
+         result
+    in:
+      - name: charging_connection_status
+        type: string
+        config:
+          source: mqtt
+          topic: homeassistant/sensor/{{ .vin }}_charging_connection_status/state
+          timeout: {{ .timeout }}
+      - name: charging_system_status
+        type: string
+        config:
+          source: mqtt
+          topic: homeassistant/sensor/{{ .vin }}_charging_system_status/state
+          timeout: {{ .timeout }}
   range:
     source: mqtt
     topic: homeassistant/sensor/{{ .vin }}_electric_range/state
